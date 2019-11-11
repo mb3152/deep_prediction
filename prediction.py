@@ -483,7 +483,7 @@ def nn_structure(task='PicSeq_AgeAdj',matrix='all',components=None,write_graph=T
 	global c
 	global donotmove
 	
-	
+	if write_graph:	task = 'WM_Task_2bk_Acc'	
 	ptype = 'nn'
 	pc = np.load('/%s/results/pc.npy'%(homedir))
 	prediction_accs = np.load('%s//results/%s_%s_%s_%s_%s_%s.npy'%(homedir,ctype,neurons,layers,task,matrix,components))
@@ -491,7 +491,7 @@ def nn_structure(task='PicSeq_AgeAdj',matrix='all',components=None,write_graph=T
 	subjects = df.Subject.values
 	
 	matrices = load_matrices(subjects,matrix,components)
-	if write_graph:	task = 'WM_Task_2bk_Acc'
+
 	b_array = df[task].values
 	b_array[np.isnan(b_array)] = np.nanmean(b_array)
 
@@ -523,6 +523,7 @@ def nn_structure(task='PicSeq_AgeAdj',matrix='all',components=None,write_graph=T
 		model = MLPRegressor(solver='lbfgs',hidden_layer_sizes=neurons_array)
 		model.fit(edges,b_array)
 		model_array = np.array(model.coefs_[0:layers])
+		1/0
 
 
 		pos_graph_arrays = []
@@ -1393,6 +1394,8 @@ def figure2(task='all_p',ctype=ctype,matrix='all',components='None'):
 	all_nn_pc_r = []
 	idx = 0
 
+	all_mean_prediction_acc = np.zeros((len(layers_array),len(neurons_array),b_array.shape[1]))
+	pc_all_mean_prediction_acc =  np.zeros((len(layers_array),len(neurons_array),b_array.shape[1]))
 
 	if loop_n == 7: names = ['Visual','Sensory\nMotor','Dorsal\nAttention','Ventral\nAttention','Limbic','Control','Default']
 	if loop_n == 16: names = ['Visual','Visual','Sensory\nMotor','Sensory\nMotor','Dorsal\nAttention','Dorsal\nAttention','Ventral\nAttention','Ventral\nAttention','Limbic','Control','Control','Control','Default','Default','Default','Default']
@@ -1421,7 +1424,6 @@ def figure2(task='all_p',ctype=ctype,matrix='all',components='None'):
 					prediction[:] = np.nan
 					prediction_accs[:] = np.nan
 					print layers,neurons,task
-				# mean_prediction_acc = nan_pearsonr(np.nanmean(prediction,axis=0),b_array)[0]
 				mean_prediction_acc = np.nanmean(prediction_accs)
 				all_prediction_accs[lidx,nidx] = prediction_accs
 				full_prediction_accs[lidx,nidx] = prediction_accs
@@ -1450,22 +1452,17 @@ def figure2(task='all_p',ctype=ctype,matrix='all',components='None'):
 				full_prediction_accs[lidx,nidx,:,:] = prediction_accs
 				full_prediction[lidx,nidx] = prediction
 				# 1/0
-				mean_prediction_acc = np.zeros(b_array.shape[1])
-				pc_mean_prediction_acc = np.zeros(b_array.shape[1])
-				for task_idx,this_task in enumerate(tasks):
-					# top_perf = np.where(prediction_accs[:,task_idx]>0)[0]
-					# top_perf = prediction_accs[:,np.arange(52)!=task_idx].mean(axis=1)
-					# top_perf = np.where(top_perf>0.01)[0]
-					# # 1/0
 
-					mean_prediction_acc[task_idx] = nan_pearsonr(np.nanmean(prediction[:,:,task_idx],axis=0),b_array[this_task])[0]
-					# pc_mean_prediction_acc[task_idx] = nan_pearsonr(np.nanmean(prediction[top_perf,:,task_idx],axis=0),b_array[this_task])[0]
+				for task_idx,this_task in enumerate(tasks):
+					all_mean_prediction_acc[lidx,nidx,task_idx] = nan_pearsonr(np.nanmean(prediction[:,:,task_idx],axis=0),b_array[this_task])[0]
+					pc_all_mean_prediction_acc[lidx,nidx,task_idx] = nan_pearsonr(np.nanmean(prediction[pc>.549,:,task_idx],axis=0),b_array[this_task])[0]
+				mean_prediction_acc = np.nanmean(prediction_accs)
 				# print scipy.stats.ttest_rel(pc_mean_prediction_acc,mean_prediction_acc)
 				c_prediction_accs[lidx,nidx,:] = mean_prediction_acc
 				# pc_prediction_accs[lidx,nidx,:] = pc_mean_prediction_acc
 				all_prediction_accs[lidx,nidx] = np.nanmean(prediction_accs,axis=1)
 				## don't do it on collapsed
-				mean_prediction_acc = np.nanmean(prediction_accs)
+				
 				# 1/0
 				hub_corr = nan_pearsonr(pc,np.nanmean(prediction_accs,axis=1))[0]
 				l.append(lidx)
@@ -1477,6 +1474,7 @@ def figure2(task='all_p',ctype=ctype,matrix='all',components='None'):
 				p_array[lidx,nidx] = hub_corr
 			idx = idx + 1	
 
+	np.save('/%s/results/hub_corr.npy'%(homedir),p_array)
 
 	# fps = []
 	# full_prediction = full_prediction.reshape(100,400,607,52)
@@ -1837,6 +1835,9 @@ def figure3(task='all_p',ctype='fc',matrix='all',components='None'):
 				for r in result:
 					pc_acc_array[lidx,nidx,ridx],pc_mod_array[lidx,nidx,ridx],mod_acc_array[lidx,nidx,ridx],acc_array[lidx,nidx,ridx],full_acc_array[lidx,nidx,ridx],mod_array[lidx,nidx,ridx],mean_acc_array[lidx,nidx,ridx] = r
 					ridx = ridx +1
+	pc_acc_array = []
+	for i in range(52):pc_acc_array.append(np.load('/%s/results/hub_corr.npy'%(homedir))[1:,:])
+	pc_acc_array = np.array(pc_acc_array).swapaxes(0,1).swapaxes(1,2)
 	f, axes = plt.subplots(2, 4,figsize=(14.333,6),tight_layout=True)
 	#architecture Q
 	vals = np.nanmean(mod_array,axis=3).mean(axis=2)/10000.
@@ -1960,8 +1961,9 @@ def figure3(task='all_p',ctype='fc',matrix='all',components='None'):
 	axes[1,2].set_title('g',loc='left',weight="bold")
 	axes[1,3].set_title('h',loc='left',weight="bold")
 	plt.tight_layout()
-	plt.savefig('/%s/figures/archs.pdf'%(homedir))
-	plt.close()
+	plt.show()
+	# plt.savefig('/%s/figures/archs.pdf'%(homedir))
+	# plt.close()
 	# plt.savefig('/%s/figures/archs.png'%(homedir),dpi=900)
 
 
@@ -1981,6 +1983,274 @@ def figure3(task='all_p',ctype='fc',matrix='all',components='None'):
 	# plt.xlabel('predictive nodes are connector hubs')
 	# plt.ylabel('task is predicted well by many nodes')
 	# plt.savefig('pc_lots_of_nodes_%s.pdf'%(task))
+
+def figure3(task='all_p',ctype='fc',matrix='all',components='None'):
+	global pc
+	global neurons_array
+	global layers_array
+	global pc_mod_array
+	global pc_acc_array
+	global mod_acc_array
+	global med_array
+	sns.set(context="paper",font_scale=1,font='Palatino')
+	df = behavior()
+	subjects = df.Subject.values
+	names = ['Visual','Sensory\nMotor','Dorsal\nAttention','Ventral\nAttention','Control','Default']	
+	matrices = load_matrices(subjects,matrix,components)
+	mean_matrix = np.nanmean(matrices,axis=0)
+	if task == 'ptasks':
+		stasks,ptasks,rtasks = load_tasks()
+		tasks = ptasks
+		b_array = df.drop('Subject',axis=1)
+		b_array = b_array.fillna(df.mean())
+		for c in b_array.columns.values:
+			if c not in tasks: 
+				b_array = b_array.drop(c,axis=1)
+	if task == 'stasks':
+		stasks,ptasks,rtasks = load_tasks()
+		tasks = stasks
+		b_array = df.drop('Subject',axis=1)
+		b_array = b_array.fillna(df.mean())
+		for c in b_array.columns.values:
+			if c not in tasks: 
+				b_array = b_array.drop(c,axis=1)
+	if task == 'all':
+		stasks,ptasks,rtasks = load_tasks()
+		tasks = np.zeros((len(stasks) + len(ptasks) + len(rtasks))).astype('S64')
+		tasks[:len(stasks)] = stasks
+		tasks[len(stasks):len(stasks)+len(ptasks)] = ptasks
+		tasks[len(ptasks) + len(stasks):] = rtasks
+		# tasks = tasks
+		b_array = df.drop('Subject',axis=1)
+		b_array = b_array.fillna(df.mean())
+		for c in b_array.columns.values:
+			if c not in tasks: 
+				b_array = b_array.drop(c,axis=1)
+	if task == 'all_p':
+		stasks,ptasks,rtasks = load_tasks()
+		# tasks = ptasks
+		tasks = np.zeros((len(stasks) + len(ptasks))).astype('S64')
+		tasks[:len(stasks)] = stasks
+		tasks[len(stasks):] = ptasks
+		# tasks = tasks
+		b_array = df.drop('Subject',axis=1)
+		b_array = b_array.fillna(df.mean())
+		for c in b_array.columns.values:
+			if c not in tasks: 
+				b_array = b_array.drop(c,axis=1)
+	if task == 'rtasks':
+		stasks,ptasks,rtasks = load_tasks()
+		tasks = rtasks
+		b_array = df.drop('Subject',axis=1)
+		b_array = b_array.fillna(df.mean())
+		for c in b_array.columns.values:
+			if c not in tasks: 
+				b_array = b_array.drop(c,axis=1)
+	if task not in ['ptasks','stasks','rtasks','all','all_p']:
+		b_array = df[task].values
+		b_array[np.isnan(b_array)] = np.nanmean(b_array)
+		tasks = [task]
+
+	layers_array = np.array([2,3,4,5,6,7,8,9,10])
+	neurons_array = np.array([10,15,25,50,75,100,150,200,300,400])
+
+	loop_n = 400
+	try:
+		if int(components) == 7 or int(components) == 17: 
+			loop_n = int(components)
+	except: pass
+	pc = np.load('/%s/results/pc.npy'%(homedir))
+
+
+	pc_mod_array = np.zeros((layers_array.shape[0],neurons_array.shape[0],))
+	mod_acc_array = np.zeros((layers_array.shape[0],neurons_array.shape[0]))
+	pc_acc_array = np.zeros((layers_array.shape[0],neurons_array.shape[0]))
+	acc_array = np.zeros((layers_array.shape[0],neurons_array.shape[0]))
+	full_acc_array = np.zeros((layers_array.shape[0],neurons_array.shape[0],loop_n,b_array.shape[1]))
+	mod_array = np.zeros((layers_array.shape[0],neurons_array.shape[0]))
+	
+	# pc_mod_array[:] = np.nan
+	# mod_acc_array[:] = np.nan
+	# pc_acc_array[:] = np.nan
+	# med_array[:] = np.nan
+	# acc_array[:] = np.nan
+	# mod_array[:] = np.nan
+
+
+	for lidx,layers in enumerate(layers_array):
+		for nidx,neurons in enumerate(neurons_array):
+			print layers,neurons
+			if layers == 1: continue
+			prediction_accs = np.zeros((loop_n,b_array.shape[1]))
+			prediction = np.zeros((loop_n,b_array.shape[0],b_array.shape[1]))
+			mods = np.zeros((loop_n,b_array.shape[1]))
+			for task_idx,this_task in enumerate(tasks):
+				prediction_accs[:,task_idx] = np.load('%s//results/%s_%s_%s_%s_%s_%s.npy'%(homedir,ctype,neurons,layers,this_task,matrix,components))
+				prediction[:,:,task_idx] = np.load('%s//results/%s_%s_%s_%s_%s_%s_prediction.npy'%(homedir,ctype,neurons,layers,this_task,matrix,components))
+				mods[:,task_idx] = np.load('%s//results/%s_%s_%s_%s_%s_%s_network_structure.npy'%(homedir,ctype,neurons,layers,this_task,matrix,components))
+			mean_prediction_acc = np.zeros(b_array.shape[1])
+			for task_idx,this_task in enumerate(tasks):
+				mean_prediction_acc[task_idx] = nan_pearsonr(np.nanmean(prediction[:,:,task_idx],axis=0),b_array[this_task])[0]
+			#layer correlates PC with acc
+			pc_acc_array[lidx,nidx] = nan_pearsonr(pc,np.nanmean(prediction_accs,axis=1))[0]
+			# layer correlates Q with acc
+			pc_mod_array[lidx,nidx] = pearsonr(pc,np.nanmean(mods,axis=1))[0]
+			# layer correlates Q with acc
+			mod_acc_array[lidx,nidx] = pearsonr(np.nanmean(prediction_accs,axis=1),np.nanmean(mods,axis=1))[0]
+			acc_array[lidx,nidx] = mean_prediction_acc.mean()
+			full_acc_array[lidx,nidx] = prediction_accs
+			mod_array[lidx,nidx] = np.mean(mods)
+
+	# pc_acc_array = []
+	# for i in range(52):pc_acc_array.append(np.load('/%s/results/hub_corr.npy'%(homedir))[1:,:])
+	# pc_acc_array = np.array(pc_acc_array).swapaxes(0,1).swapaxes(1,2)
+	f, axes = plt.subplots(2, 4,figsize=(14.333,6),tight_layout=True)
+	#architecture Q
+	vals = mod_array/10000.
+	ax = axes[0][0]
+	sns.heatmap(vals,cmap='coolwarm',vmax=.25,vmin=0.05,ax=ax,cbar_kws={'label': 'DNN Q'})
+	cbar = ax.collections[0].colorbar
+	cbar.set_ticks([0.05,0.25])
+	cbar.set_ticklabels([0.05,.25])
+	cbar.ax.locator_params(nbins=2)
+	cbar.set_label('architecture $\it{Q}$',rotation=270,labelpad=-10)
+	ax.set_yticklabels(layers_array,fontsize=8)
+	ax.set_xticklabels(neurons_array,fontsize=8)
+	ax.set_ylabel('layers')
+	ax.set_xlabel('neurons')
+	#architecture accuracy
+	vals = full_acc_array.mean(axis=-1).mean(axis=-1)
+	ax = axes[0][1]
+	sns.heatmap(vals,cmap='coolwarm',ax=ax,cbar_kws={'label': 'DNN Performance'})
+	cbar = ax.collections[0].colorbar
+	cmin,cmax = vals.min(),vals.max()
+	cbar.set_ticks([cmin,cmax])
+	cmin,cmax = np.around(vals.min(),3),np.around(vals.max(),3)
+	cbar.set_ticklabels([cmin,cmax])
+	cbar.set_label('architecture accuracy',rotation=270,labelpad=-10)
+	ax.set_yticklabels(layers_array,fontsize=8)
+	ax.set_xticklabels(neurons_array,fontsize=8)
+	ax.set_ylabel('layers')
+	ax.set_xlabel('neurons')
+	#architecture,pc-accuracy
+	ax = axes[0][2]
+	vals = pc_acc_array
+	sns.heatmap(vals,cmap='coolwarm',ax=ax)
+	cbar = ax.collections[0].colorbar
+	cmin,cmax = vals.min(),vals.max()
+	cbar.set_ticks([cmin,cmax])
+	cmin,cmax = np.around(vals.min(),2),np.around(vals.max(),2)
+	cbar.set_ticklabels([cmin,cmax])
+	cbar.set_label("Pearson's $\it{r}$ (PC,accuracy",rotation=270,labelpad=-8)
+	ax.set_yticklabels(layers_array,fontsize=8)
+	ax.set_xticklabels(neurons_array,fontsize=8)
+	ax.set_ylabel('layers')
+	ax.set_xlabel('neurons')
+	#q,acc,pc polyfit
+	ax = axes[0][3]
+	plt.sca(ax)
+	x,y=full_acc_array.mean(axis=-1).mean(axis=-1).flatten(),mod_array.flatten()/10000
+	# for i in range(2,10):
+	# 	polynomial_features= PolynomialFeatures(degree=i)
+	# 	xp = polynomial_features.fit_transform(x.reshape(-1,1))
+	# 	model = sm.OLS(y, xp).fit()
+	# 	print i,model.rsquared,pearsonr(model.resid,pc_acc_array.mean(axis=2).flatten())
+	polynomial_features= PolynomialFeatures(degree=4)
+	xp = polynomial_features.fit_transform(x.reshape(-1,1))
+	model = sm.OLS(y, xp).fit()
+	# print i,model.rsquared,pearsonr(model.resid,pc_acc_array.mean(axis=2).flatten())
+	ypred = model.predict(xp)
+	scat = plt.scatter(x,y,c=pc_acc_array.flatten(),cmap='coolwarm',alpha=0.75)
+	plt.colorbar(scat,ax=ax)
+	# ax.set_xlim(0.0525,0.061)
+	cbar = ax.collections[0].colorbar
+	cmin,cmax=pc_acc_array.flatten().min(),pc_acc_array.flatten().max()
+	cbar.set_ticks([cmin,cmax])
+	cbar.set_ticklabels([np.around(cmin,2),np.around(cmax,2)])
+	cbar.set_label("Pearson's $\it{r}$ (PC,accuracy)",rotation=270,labelpad=-10)
+	ax.set_ylabel('architecture $\it{Q}$')
+	ax.set_xlabel('architecture accuracy')
+	sns.lineplot(x,ypred)
+	ax.set_xlim(0.0525,0.061)
+	#residuals from q,acc,pc polyfit
+	ax = axes[1][0]
+	x,y = model.resid,pc_acc_array.flatten()
+	sns.regplot(x,y,ax=ax,color=sns.color_palette('coolwarm',20)[-2])
+	r_val,p_val = nan_pearsonr(x,y)
+	ax.text(.85,.1,'$\it{r}$=%s\n%s,df=98' %(np.around(r_val,2),log_p_value(p_val)),{'fontsize':6},horizontalalignment='center',verticalalignment='center',transform=ax.transAxes)
+	ax.set_xlim(x.min(),x.max())
+	ax.set_ylim(y.min(),y.max())
+	ax.set_xlabel("Residuals of $\\bf{d}$")
+	ax.set_ylabel("architecture models hubs\nPearson's $\it{r}$ (PC,accuracy)")
+	#if a task is captured by high q arch, high q arch captures hubs
+	ax = axes[1][1]
+	x,y= mod_acc_array.flatten(),pc_mod_array.flatten()
+	sns.regplot(x,y,ax=ax,color=sns.color_palette('coolwarm',20)[-2])
+	r_val,p_val = nan_pearsonr(x,y)
+	ax.text(.85,.1,'$\it{r}$=%s\n%s,df=50' %(np.around(r_val,2),log_p_value(p_val)),{'fontsize':6},horizontalalignment='center',verticalalignment='center',transform=ax.transAxes)
+	ax.set_xlim(x.min(),x.max())
+	ax.set_ylim(y.min(),y.max())
+	ax.set_xlabel("High $\it{Q}$ architectures predict measure\nPearson's $\it{r}$ ($\it{Q}$,accuracy)")
+	ax.set_ylabel("High $\it{Q}$ architectures predict hubs\nPearson's $\it{r}$ ($\it{Q}$,PC)")
+	# what DNN do better when in isolation, in that there is a lot of information in each node?
+	# We might think that these DNN do the best for connector hubs, which integrate information across the other nodes
+	# so the information is already contained in single nodes, connector hubs
+	# if so, we'd expect these DNN to do especially well at predicting connector hubs, we do! 
+	vals = full_acc_array.max(axis=2).mean(axis=-1)-acc_array
+	ax = axes[1][2]
+	sns.heatmap(vals,cmap='coolwarm',ax=ax)
+	cbar = ax.collections[0].colorbar
+	cmin,cmax = vals.min(),vals.max()
+	cbar.set_ticks([cmin,cmax])
+	cmin,cmax = np.around(vals.min(),2),np.around(vals.max(),2)
+	cbar.set_ticklabels([cmin,cmax])
+	cbar.set_label('single node accuracy\n- combined accuracy',rotation=270,labelpad=-4)
+	ax.set_yticklabels(layers_array,fontsize=8)
+	ax.set_xticklabels(neurons_array,fontsize=8)
+	ax.set_ylabel('layers')
+	ax.set_xlabel('neurons')
+
+	ax = axes[1][3]
+	x,y =  (full_acc_array.max(axis=2).mean(axis=-1)-acc_array).flatten(),pc_acc_array.flatten()
+	sns.regplot(x,y,color=sns.color_palette('coolwarm',20)[2],ax=ax)
+	r_val,p_val = nan_pearsonr(x,y)
+	ax.text(.85,.1,'$\it{r}$=%s\n%s,df=98' %(np.around(r_val,2),log_p_value(p_val)),{'fontsize':6},horizontalalignment='center',verticalalignment='center',transform=ax.transAxes)
+	ax.set_xlim(x.min(),x.max())
+	ax.set_ylim(y.min(),y.max())
+	ax.set_ylabel("Architecture models hubs\nPearson's $\it{r}$ (PC,accuracy)")
+	ax.set_xlabel("Architecture's single node accuracy\n- combined accuracy")
+	axes[0,0].set_title('a',loc='left',weight="bold")
+	axes[0,1].set_title('b',loc='left',weight="bold")
+	axes[0,2].set_title('c',loc='left',weight="bold")
+	axes[0,3].set_title('d',loc='left',weight="bold")
+	axes[1,0].set_title('e',loc='left',weight="bold")
+	axes[1,1].set_title('f',loc='left',weight="bold")
+	axes[1,2].set_title('g',loc='left',weight="bold")
+	axes[1,3].set_title('h',loc='left',weight="bold")
+	plt.tight_layout()
+	# plt.show()
+	plt.savefig('/%s/figures/archs.pdf'%(homedir))
+	# plt.close()
+	# plt.savefig('/%s/figures/archs.png'%(homedir),dpi=900)
+
+
+	# t_full_acc_array = full_acc_array.reshape(90,52,400).mean(axis=0)
+	# n_full_acc_array = np.zeros((52))
+	# for t in range(52):
+	# 	# n_full_acc_array[t] = scipy.stats.entropy(t_full_acc_array[t]+abs(np.min(t_full_acc_array[t])))
+	# 	n_full_acc_array[t] = len(t_full_acc_array[t][t_full_acc_array[t]>0])
+		
+	# t_full_acc_array=scipy.stats.zscore(full_acc_array.reshape(90,52,400).mean(axis=0),axis=1)
+	# sns.regplot(pc_acc_array.mean(axis=0).mean(axis=0),t_full_acc_array.max(axis=1))
+	# plt.xlabel('predictive nodes are connector hubs')
+	# plt.ylabel('predictive nodes are outliers')
+	# plt.savefig('pc_outlier_%s.pdf'%(task))
+
+	# sns.regplot(pc_acc_array.mean(axis=0).mean(axis=0),n_full_acc_array)
+	# plt.xlabel('predictive nodes are connector hubs')
+	# plt.ylabel('task is predicted well by many nodes')
+	# plt.savefig('pc_lots_of_nodes_%s.pdf'%(task))
+
 
 def figure4():
 	task = 'all_p'
